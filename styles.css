@@ -140,10 +140,9 @@ body { position: relative; }
   position: fixed; inset: 0; z-index: 20;
   display: grid; place-items: center;
   padding: 0 4vw;
-  opacity: 0; transition: opacity 1.6s ease;
+  opacity: 0;                          /* JS ramps this off audio.currentTime */
   pointer-events: none;
 }
-body.is-revealed .chant { opacity: 1; }
 
 .line {
   grid-area: 1 / 1;                 /* all verses stacked in the same spot */

@@ -16,6 +16,7 @@ let currentLine = -1;
 let currentWord = -1;
 const EMERGE_END = 8;      // background fully emerged just as the first word arrives (~7.68s)
 const BG_MAX = 0.25;       // end state: 75% dimmed (peaks at 25% opacity)
+let textRevealEnd = 6.68;  // verse text fully bloomed 1s before the first word (set in buildLines)
 
 /* ---- load the chant data ---- */
 async function loadChant() {
@@ -82,6 +83,9 @@ function buildLines() {
   });
 
   flatWords.sort((a, b) => a.start - b.start);
+  // the verse text slowly blooms in during the intro,
+  // reaching full visibility 1 second before the first sung word
+  if (flatWords.length) textRevealEnd = Math.max(0.5, flatWords[0].start - 1.0);
   if (document.title === 'document') document.title = chant.title || 'A Serbian Chant';
 }
 
@@ -113,11 +117,15 @@ function renderAt(t) {
     if (li >= 0) highlightEnglish(li, flatWords[idx].wiInLine + 1);
   }
 
-  // background very slowly appears, fully emerged (to 25% opacity) by second 5
+  // background very slowly appears, fully emerged (to 25% opacity) by EMERGE_END
   if (sceneImage) {
     sceneImage.style.opacity = Math.max(0, Math.min(1, t / EMERGE_END)) * BG_MAX;
   }
 
+  // verse text blooms in across the intro, fully present 1s before the first word
+  if (chantEl) {
+    chantEl.style.opacity = Math.max(0, Math.min(1, t / textRevealEnd));
+  }
 }
 
 /* Light the English by CHUNK: each Serbian word owns a contiguous span of
