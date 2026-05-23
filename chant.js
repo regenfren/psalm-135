@@ -9,13 +9,6 @@ const sceneImage  = document.getElementById('sceneImage');
 const veil        = document.getElementById('veil');
 const enterBtn    = document.getElementById('enterBtn');
 const chantEl     = document.getElementById('chant');
-const dock        = document.getElementById('dock');
-const playBtn     = document.getElementById('playBtn');
-const transBtn    = document.getElementById('transBtn');
-const progressTrack = document.getElementById('progressTrack');
-const progressFill  = document.getElementById('progressFill');
-const icoPlay  = document.querySelector('.ico--play');
-const icoPause = document.querySelector('.ico--pause');
 
 let chant = null;          // the loaded data
 let flatWords = [];        // [{ start, lineIndex, el }] sorted by start time
@@ -125,10 +118,6 @@ function renderAt(t) {
     sceneImage.style.opacity = Math.max(0, Math.min(1, t / EMERGE_END)) * BG_MAX;
   }
 
-  // progress bar (only if the dock is present)
-  if (progressFill && audio.duration) {
-    progressFill.style.width = (t / audio.duration) * 100 + '%';
-  }
 }
 
 /* Light the English by CHUNK: each Serbian word owns a contiguous span of
@@ -229,18 +218,7 @@ function fadeOutBg(dur) {
   }, (dur * 1000) / steps);
 }
 
-/* ---- Web Audio: ambient drone + the seal-unlock sound ----
-   Synthesized so no asset files are needed. To use real recordings instead,
-   drop assets/ambient.* / assets/seal.* and swap these for <audio> playback. */
-let actx = null, ambientGain = null;
-function ensureCtx() {
-  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-  if (actx.state === 'suspended') actx.resume();
-  return actx;
-}
-
-/* (white-noise ambient removed) */
-
+/* ---- the seal-opening sound on the 135 click ---- */
 function playUnlock() {
   // play the seal/book-opening file Tim picked
   const sfx = document.getElementById('sealSfx');
@@ -300,8 +278,6 @@ function enter() {
 function play() {
   audio.play().then(() => {
     document.body.classList.add('is-playing');
-    if (icoPlay)  icoPlay.style.display = 'none';
-    if (icoPause) icoPause.style.display = '';
     requestAnimationFrame(tick);
   }).catch(() => {/* user gesture needed; ignore */});
 }
@@ -309,8 +285,6 @@ function play() {
 function pause() {
   audio.pause();
   document.body.classList.remove('is-playing');
-  if (icoPlay)  icoPlay.style.display = '';
-  if (icoPause) icoPause.style.display = 'none';
 }
 
 function togglePlay() { audio.paused ? play() : pause(); }
