@@ -14,7 +14,7 @@ let chant = null;          // the loaded data
 let flatWords = [];        // [{ start, lineIndex, el }] sorted by start time
 let currentLine = -1;
 let currentWord = -1;
-const EMERGE_END = 8;      // background fully emerged just as the first word arrives (~7.68s)
+const EMERGE_END = 6;      // background fully emerged just as the first word arrives (~5.68s)
 const BG_MAX = 0.25;       // end state: 75% dimmed (peaks at 25% opacity)
 let textRevealEnd = 6.68;  // verse text fully bloomed 1s before the first word (set in buildLines)
 
