@@ -242,6 +242,28 @@ function playUnlock() {
   try { sfx.currentTime = 0; sfx.play(); } catch (e) {}
 }
 
+/* A faint shimmer when the cursor enters 135 — soft sine bell, throttled. */
+let lastShimmer = 0;
+function playHoverShimmer() {
+  const now = performance.now();
+  if (now - lastShimmer < 900) return;     // don't retrigger on jitter
+  lastShimmer = now;
+  try {
+    const ctx = ensureCtx();
+    const t0 = ctx.currentTime;
+    const master = ctx.createGain(); master.gain.value = 0.06; master.connect(ctx.destination);
+    [1046.50, 1567.98].forEach((f, i) => {    // C6 + G6 — a soft bright fifth
+      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.35 / (i + 1), t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
+      o.connect(g); g.connect(master);
+      o.start(t0); o.stop(t0 + 1.5);
+    });
+  } catch (e) {}
+}
+
 function enter() {
   if (entered) return;          // ignore the bubbled/extra clicks
   entered = true;
@@ -280,6 +302,7 @@ function togglePlay() { audio.paused ? play() : pause(); }
 
 /* ---- controls (no on-screen panel) ---- */
 enterBtn.addEventListener('click', enter);
+enterBtn.addEventListener('mouseenter', playHoverShimmer);
 audio.addEventListener('ended', () => pause());
 audio.addEventListener('play',  () => requestAnimationFrame(tick));
 // whenever the audio's clock moves — including native seeks — re-sync the text
