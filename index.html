@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Тиха Молитва — A Serbian Chant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=EB+Garamond:ital@0;1&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- The image: a small man kneeling, the church vast above him -->
+  <div class="scene">
+    <div class="scene__image" id="sceneImage"></div>
+    <div class="scene__vignette"></div>
+    <div class="scene__lightfall"></div>
+  </div>
+
+  <!-- The opening veil — just the psalm number -->
+  <div class="veil" id="veil">
+    <button class="psalm-num" id="enterBtn" aria-label="Begin">135</button>
+  </div>
+
+  <!-- The chant text, synced word by word -->
+  <main class="chant" id="chant" aria-live="polite"></main>
+
+  <audio id="audio"   preload="auto" src="assets/chant.wav"></audio>
+  <audio id="sealSfx" preload="auto" src="assets/seal.mp3?v=loud"></audio>
+
+  <script src="chant.js"></script>
+</body>
+</html>

@@ -1,0 +1,254 @@
+/* Miroslav — Cyrillic lettering after the medieval Miroslav Gospel.
+   Drop the downloaded font into assets/fonts/ (any of these formats works). */
+@font-face {
+  font-family: 'Miroslav';
+  src: url('assets/fonts/miroslav.woff2') format('woff2'),
+       url('assets/fonts/miroslav.woff')  format('woff'),
+       url('assets/fonts/miroslav.ttf')   format('truetype'),
+       url('assets/fonts/miroslav.otf')   format('opentype');
+  font-display: swap;
+}
+
+:root {
+  --gold:        #d8b069;
+  --gold-bright: #f4dca0;
+  --gold-deep:   #8a6a2f;
+  --ink:         #0a0807;
+  --ink-soft:    #1a1410;
+  --dim:         rgba(216, 176, 105, 0.22);
+  --dim-mid:     rgba(216, 176, 105, 0.45);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--ink);
+  color: var(--gold);
+  font-family: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body { position: relative; }
+
+/* ---------- The scene (image) ---------- */
+.scene { position: fixed; inset: 0; z-index: 0; overflow: hidden; }
+
+.scene__image {
+  position: absolute; inset: 0;
+  background-image: url('assets/hands.png');
+  background-size: cover;              /* fill the screen with the reaching hands */
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-color: #000;
+  opacity: 0;                          /* emerges via JS, timed to the first word */
+}
+
+/* vignette off — the cross emerges to full brightness */
+.scene__vignette { display: none; }
+
+/* light-haze disabled — straight black background */
+.scene__lightfall { display: none; }
+
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1.00); }
+  50%      { transform: scale(1.045); }
+}
+@keyframes glow {
+  0%, 100% { opacity: 0.30; }
+  50%      { opacity: 0.65; }
+}
+
+/* ---------- The opening veil ---------- */
+.veil {
+  position: fixed; inset: 0; z-index: 40;
+  display: grid; place-items: center;
+  background: radial-gradient(ellipse at center, rgba(10,8,7,0.78), rgba(10,8,7,0.96));
+  backdrop-filter: blur(2px);
+  transition: opacity 2.2s ease, visibility 2.2s;
+}
+.veil.is-gone { opacity: 0; visibility: hidden; pointer-events: none; }
+
+/* the psalm number — carved-stone Roman lettering, softly breathing gold */
+.psalm-num {
+  background: transparent; border: none; cursor: pointer; padding: 0;
+  font-family: 'Cinzel', serif; font-weight: 500;
+  font-size: clamp(5rem, 22vw, 15rem); line-height: 1;
+  letter-spacing: 0.08em;
+  color: #000;                              /* black, defined by its glow */
+  text-shadow: 0 0 22px rgba(216,176,105,0.5), 0 0 5px rgba(216,176,105,0.6);
+  animation: rise 2.6s cubic-bezier(.2,.7,.2,1) both, num-breathe 6s ease-in-out 2.6s infinite;
+  transition: text-shadow 0.5s ease, transform 0.5s ease;
+}
+.psalm-num:hover {
+  text-shadow: 0 0 34px rgba(244,220,160,0.8), 0 0 8px rgba(244,220,160,0.7);
+  transform: scale(1.03);
+}
+
+@keyframes num-breathe {
+  0%, 100% { text-shadow: 0 0 20px rgba(216,176,105,0.42), 0 0 5px rgba(216,176,105,0.55); }
+  50%      { text-shadow: 0 0 30px rgba(244,220,160,0.6),  0 0 8px rgba(244,220,160,0.65); }
+}
+
+/* the 135 opens — flares bright at the click, then slowly expands
+   into a wash of gold and dissolves into the dark, in time with the
+   seal-opening sound, before the chant begins */
+.psalm-num.opening {
+  animation: psalm-open 1.6s cubic-bezier(0.2, 0.6, 0.2, 1) forwards;
+  pointer-events: none;
+}
+@keyframes psalm-open {
+  0% {
+    transform: scale(1);
+    text-shadow: 0 0 22px rgba(216,176,105,0.5), 0 0 5px rgba(216,176,105,0.6);
+    opacity: 1;
+  }
+  20% {                                  /* the flash as the seal gives way */
+    transform: scale(1.08);
+    text-shadow:
+      0 0 64px rgba(244,220,160,0.95),
+      0 0 22px rgba(244,220,160,0.9),
+      0 0 6px  rgba(244,220,160,0.95);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.6);
+    text-shadow:
+      0 0 140px rgba(244,220,160,0),
+      0 0 36px  rgba(244,220,160,0);
+    opacity: 0;
+    filter: blur(2px);
+  }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- The chant text ----------
+   One verse at a time, centered. The verses cross-fade; the word-glow
+   lives inside the verse that's currently sung. */
+.chant {
+  position: fixed; inset: 0; z-index: 20;
+  display: grid; place-items: center;
+  padding: 0 4vw;
+  opacity: 0; transition: opacity 1.6s ease;
+  pointer-events: none;
+}
+body.is-revealed .chant { opacity: 1; }
+
+.line {
+  grid-area: 1 / 1;                 /* all verses stacked in the same spot */
+  text-align: center; width: 94vw;
+  opacity: 0; filter: blur(6px);
+  transform: translateY(16px);
+  transition: opacity 1.1s ease, filter 1.1s ease, transform 1.1s ease;
+}
+.line.is-active { opacity: 1; filter: blur(0); transform: translateY(0); }
+/* soft dark halo so the verse reads cleanly over the cross */
+.line { filter: drop-shadow(0 2px 16px rgba(0,0,0,0.85)); }
+
+.line__cy {
+  font-family: 'Miroslav', 'Cormorant Garamond', serif;
+  font-weight: 500;
+  font-size: 4rem;              /* base size; JS shrinks it to fit one line */
+  white-space: nowrap;          /* one uninterrupted line, never wraps */
+  line-height: 1.2; letter-spacing: 0.01em;
+}
+.line__en {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 300;                       /* thin */
+  font-style: italic;
+  font-size: clamp(0.95rem, 2.1vw, 1.35rem);
+  letter-spacing: 0.01em;
+  margin-top: 1.2rem; line-height: 1.4;
+  transition: opacity 0.8s ease;
+}
+/* English in the same gold as the glow, filling in by chunk */
+.line__en .ew {
+  color: rgba(244, 220, 160, 0.32);       /* glow gold, dim */
+  transition: color 0.6s ease, text-shadow 0.6s ease;
+}
+.line__en .ew.ew-sung { color: rgba(244, 220, 160, 0.7); }
+.line__en .ew.ew-now  {
+  color: var(--gold-bright);
+  text-shadow: 0 0 14px rgba(244,220,160,0.55);
+}
+body.hide-translation .line__en { opacity: 0; }
+
+/* black letterforms with a dim gold glow on their edges;
+   the glow brightens as a word is chanted, strongest on the current word */
+.w {
+  color: #000;
+  text-shadow:
+    0 0 5px rgba(216,176,105,0.45),
+    0 0 1px rgba(216,176,105,0.6);
+  transition: text-shadow 0.7s ease;
+}
+.w.sung {                                              /* already chanted */
+  text-shadow:
+    0 0 8px rgba(216,176,105,0.65),
+    0 0 2px rgba(216,176,105,0.75);
+}
+.w.now {                                               /* the word in this moment */
+  text-shadow:
+    0 0 18px rgba(244,220,160,0.95),
+    0 0 6px rgba(244,220,160,0.85),
+    0 0 2px rgba(244,220,160,0.9);
+}
+
+/* ---------- The dock ---------- */
+.dock {
+  position: fixed; left: 50%; bottom: 4vh; transform: translateX(-50%);
+  z-index: 30; display: flex; align-items: center; gap: 1.1rem;
+  padding: 0.7rem 1.1rem; border-radius: 999px;
+  background: rgba(10,8,7,0.5); backdrop-filter: blur(10px);
+  border: 1px solid var(--dim);
+  opacity: 0; transition: opacity 1.2s ease 0.6s;
+  width: min(560px, 84vw);
+}
+body.is-revealed .dock { opacity: 1; }
+.dock.is-idle { opacity: 0.12; }
+.dock:hover { opacity: 1 !important; }
+
+.dock__btn {
+  flex: 0 0 auto; width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; cursor: pointer;
+  background: transparent; border: 1px solid var(--dim-mid); color: var(--gold);
+  transition: border-color 0.3s, color 0.3s, background 0.3s;
+}
+.dock__btn:hover { border-color: var(--gold); color: var(--gold-bright); background: rgba(216,176,105,0.08); }
+.dock__btn--small { width: 36px; height: 36px; }
+.ico { width: 20px; height: 20px; fill: currentColor; }
+.dock__btn--small .ico { width: 17px; height: 17px; }
+
+.dock__progress {
+  flex: 1 1 auto; height: 6px; border-radius: 6px;
+  background: var(--dim); cursor: grab; position: relative;
+  padding: 7px 0; background-clip: content-box;   /* bigger hit area, thin look */
+}
+.dock__progress:active { cursor: grabbing; }
+.dock__fill {
+  position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  height: 6px; width: 0%;
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold-bright));
+  border-radius: 6px; box-shadow: 0 0 10px rgba(244,220,160,0.5);
+}
+/* draggable handle */
+.dock__fill::after {
+  content: ''; position: absolute; right: -6px; top: 50%; transform: translateY(-50%);
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--gold-bright); box-shadow: 0 0 9px rgba(244,220,160,0.7);
+}
+
+/* ---------- responsive ---------- */
+@media (max-width: 600px) {
+  .scene__image { background-position: center 28%; }
+  .chant { gap: 1rem; padding-bottom: 18vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene__image, body.is-playing .scene__lightfall, .enter__ring { animation: none; }
+}

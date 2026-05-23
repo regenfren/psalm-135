@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Timing Studio — Тиха Молитва</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=EB+Garamond&display=swap" rel="stylesheet" />
+<style>
+  :root { --gold:#d8b069; --bright:#f4dca0; --deep:#8a6a2f; --ink:#0a0807; --dim:rgba(216,176,105,.30); --dim2:rgba(216,176,105,.5); }
+  * { box-sizing:border-box; -webkit-user-select:none; user-select:none; }
+  html,body { height:100%; margin:0; }
+  body {
+    background:radial-gradient(ellipse at 50% 30%, #16100a, var(--ink));
+    color:var(--gold); font-family:'EB Garamond',Georgia,serif;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  /* top bar */
+  .top { display:flex; align-items:center; justify-content:space-between; padding:14px 22px; font-size:.85rem; letter-spacing:.05em; color:var(--dim2); }
+  .top b { color:var(--bright); font-variant-numeric:tabular-nums; }
+  .bar { height:3px; background:var(--dim); position:relative; }
+  .bar > i { position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg,var(--deep),var(--bright)); box-shadow:0 0 10px rgba(244,220,160,.5); }
+
+  /* the stage */
+  .stage { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:2vh 6vw; gap:2.2vh; min-height:0; }
+  .ctx-en { font-style:italic; color:var(--dim2); font-size:clamp(.95rem,2.4vw,1.4rem); max-width:34ch; line-height:1.4; }
+  .triplet { display:flex; align-items:baseline; justify-content:center; gap:.6em; font-family:'Cormorant Garamond',serif; }
+  .triplet .prev { color:var(--gold); opacity:.45; font-size:clamp(1.3rem,3.5vw,2.4rem); }
+  .triplet .next { color:var(--dim); font-size:clamp(1.3rem,3.5vw,2.4rem); }
+  .triplet .now  {
+    color:var(--bright); font-weight:600; font-size:clamp(2.6rem,9vw,6rem); line-height:1;
+    text-shadow:0 0 34px rgba(244,220,160,.7), 0 0 6px rgba(244,220,160,.5);
+  }
+  .triplet .now.waiting { color:var(--dim); text-shadow:none; font-size:clamp(2rem,6vw,3.5rem); }
+  body.playing .triplet .now:not(.waiting) { animation:beat 1.1s ease-in-out infinite; }
+  /* the word you're listening for next */
+  .listen { font-family:'Cormorant Garamond',serif; color:var(--dim2); font-size:clamp(1.1rem,3vw,1.7rem); }
+  .listen b { color:var(--gold); border-bottom:2px dotted var(--dim2); padding-bottom:2px; }
+  .listen.done { color:var(--bright); }
+  @keyframes beat { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  .ctx-line { color:var(--dim2); font-size:clamp(.9rem,2.2vw,1.25rem); max-width:40ch; line-height:1.5; }
+  .ctx-line .hl { color:var(--bright); }
+  .ctx-line .seen { color:var(--gold); opacity:.7; }
+  .done-msg { color:var(--bright); font-size:1.4rem; font-style:italic; }
+
+  /* tap button */
+  .tap {
+    width:min(76vw,420px); padding:22px; margin:1vh 0;
+    border-radius:18px; border:1px solid var(--dim2);
+    background:rgba(216,176,105,.06); color:var(--bright);
+    font-family:inherit; font-size:1.2rem; letter-spacing:.08em; cursor:pointer;
+    transition:.12s; text-transform:uppercase;
+  }
+  .tap:active { transform:scale(.97); background:rgba(244,220,160,.16); border-color:var(--bright); }
+  .tap small { display:block; text-transform:none; letter-spacing:0; font-size:.8rem; color:var(--dim2); margin-top:6px; }
+
+  /* controls */
+  .controls { display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:center; padding:12px 16px 6px; }
+  button.ctl {
+    background:transparent; border:1px solid var(--dim); color:var(--gold);
+    padding:9px 16px; border-radius:999px; cursor:pointer; font-family:inherit; font-size:.92rem; transition:.2s;
+  }
+  button.ctl:hover { border-color:var(--gold); color:var(--bright); background:rgba(216,176,105,.08); }
+  button.ctl.save { border-color:var(--bright); color:var(--bright); }
+  button.ctl.play { width:54px; height:54px; border-radius:50%; padding:0; font-size:1.3rem; display:grid; place-items:center; }
+  .scrub { flex:1 1 240px; min-width:160px; height:14px; border-radius:8px; background:var(--dim); position:relative; cursor:grab; }
+  .scrub:active { cursor:grabbing; }
+  .scrub > i { position:absolute; left:0; top:0; bottom:0; width:0%; background:linear-gradient(90deg,var(--deep),var(--gold)); border-radius:8px; }
+  /* draggable handle */
+  .scrub > i::after { content:''; position:absolute; right:-7px; top:50%; transform:translateY(-50%); width:16px; height:16px; border-radius:50%; background:var(--bright); box-shadow:0 0 10px rgba(244,220,160,.7); }
+  .hint { text-align:center; color:var(--dim); font-size:.78rem; letter-spacing:.06em; padding:0 16px 14px; }
+  kbd { border:1px solid var(--dim); border-radius:5px; padding:1px 7px; font-family:monospace; color:var(--bright); }
+  .toast { position:fixed; bottom:84px; left:50%; transform:translateX(-50%); background:rgba(10,8,7,.92); border:1px solid var(--dim2); color:var(--bright); padding:10px 18px; border-radius:999px; opacity:0; transition:.3s; pointer-events:none; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+  <div class="top">
+    <span>Timing Studio · <i>tap each word as it begins</i></span>
+    <span><b id="count">0</b> / <b id="total">0</b> words · <b id="clock">0:00</b></span>
+  </div>
+  <div class="bar"><i id="prog"></i></div>
+
+  <div class="stage">
+    <div class="ctx-en" id="ctxEn"></div>
+    <div class="triplet">
+      <span class="prev" id="prev"></span>
+      <span class="now"  id="now">—</span>
+    </div>
+    <div class="listen" id="listen"></div>
+    <div class="ctx-line" id="ctxLine"></div>
+    <button class="tap" id="tapBtn">Tap
+      <small id="tapHint">press <kbd>Space</kbd> the instant the next word begins</small>
+    </button>
+  </div>
+
+  <div class="controls">
+    <button class="ctl play" id="playBtn" title="Play / pause (P)">▶</button>
+    <div class="scrub" id="scrub"><i id="scrubFill"></i></div>
+    <button class="ctl" id="undoBtn" title="Undo last (Z / Backspace)">↶ Undo</button>
+    <button class="ctl" id="back3" title="Rewind 3s">⟲ 3s</button>
+    <button class="ctl" id="restartBtn" title="Wipe all timings">Restart</button>
+    <button class="ctl save" id="saveBtn">✓ Save sync</button>
+  </div>
+  <div class="hint"><kbd>Space</kbd> tap · <kbd>Z</kbd> undo · <kbd>P</kbd> play/pause · <kbd>←</kbd> back 3s · progress saves itself</div>
+
+  <audio id="audio" src="assets/chant.wav" preload="auto"></audio>
+  <div class="toast" id="toast"></div>
+
+<script>
+const $ = (id)=>document.getElementById(id);
+const audio = $('audio');
+const LS_KEY = 'tiha-molitva-timings-v1';
+
+/* ---- Psalm 135 · Daničić Serbian + faithful 1:1 English ---- */
+const PAIRS = [
+["Славите Господа, јер је добар; Алилуија","O give thanks unto the LORD, for he is good; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Славите Бога над боговима; Алилуија","O give thanks unto the God of gods; Alleluia"],
+["јер је довијека милост његова. Алилуија","for his mercy endureth for ever; Alleluia"],
+["Славите господа над господарима; Алилуија","O give thanks to the Lord of lords; Alleluia"],
+["јер је довијека милост Његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Онога који Једини твори чудеса велика; Алилуија","To him who alone doeth great wonders; Alleluia"],
+["Јер је довијека милост Његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Који је створио небеса премудро; Алилуија","To him that by wisdom made the heavens; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Утврдио земљу на води; Алилуија","To him that stretched out the earth above the waters; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Створио велика видјела; Алилуија","To him that made great lights; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Сунце, да управља даном; Алилуија","The sun to rule by day; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Мјесец и звијезде, да управљају ноћу; Алилуија","The moon and stars to rule by night; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Који поби Мисир у првенцима његовијем; Алилуија","To him that smote Egypt in their firstborn; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Изведе из њега Израиља; Алилуија","And brought out Israel from among them; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Руком крјепком и мишицом подигнутом; Алилуија","With a strong hand, and with a stretched out arm; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Који раздвоји Црвено Море; Алилуија","To him which divided the Red sea into parts; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["И проведе Израиља кроз сред њега; Алилуија","And made Israel to pass through the midst of it; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["А Фараона и војску његову врже у Море Црвено; Алилуија","But overthrew Pharaoh and his host in the Red sea; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Преведе народ свој преко пустиње; Алилуија","To him which led his people through the wilderness; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Поби цареве велике; Алилуија","To him which smote great kings; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["И изгуби цареве знатне; Алилуија","And slew famous kings; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Сиона цара Аморејскога; Алилуија","Sihon king of the Amorites; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["И Ога цара Васанскога; Алилуија","And Og the king of Bashan; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["И даде земљу њихову у наслеђе; Алилуија","And gave their land for an heritage; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["У наслеђе Израиљу, слузи својему; Алилуија","Even an heritage unto Israel his servant; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Који нас се опомену у понижењу нашем; Алилуија","Who remembered us in our low estate; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["И избави нас од непријатеља наших; Алилуија","And hath redeemed us from our enemies; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Који даје храну свакому тијелу; Алилуија","Who giveth food to all flesh; Alleluia"],
+["јер је довијека милост његова; Алилуија","for his mercy endureth for ever; Alleluia"],
+["Славите Бога небескога, Алилуја,","O give thanks unto the God of heaven; Alleluia"],
+["јер је довијека милост Његова. Алилуја","for his mercy endureth for ever; Alleluia"],
+];
+
+/* build flat word list with line membership */
+const lines = PAIRS.map(([cy,en]) => ({ en, cyWords: cy.split(/\s+/) }));
+const flat = [];   // { w, li, wi, t }
+lines.forEach((ln, li) => ln.cyWords.forEach((w, wi) => flat.push({ w, li, wi, t:null })));
+let idx = 0;       // next word to stamp
+
+$('total').textContent = flat.length;
+
+/* ---- restore saved progress ---- */
+(function restore(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (saved && saved.length === flat.length) {
+      saved.forEach((t,i)=> flat[i].t = t);
+      idx = flat.findIndex(f=>f.t===null);
+      if (idx === -1) idx = flat.length;
+    }
+  } catch(e){}
+})();
+
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(flat.map(f=>f.t))); }
+
+/* ---- render ---------------------------------------------------------
+   idx   = number of words already stamped = next word to stamp
+   sel   = idx-1 = the word CURRENTLY being sung (stays lit until next tap)
+   up    = idx   = the word you're LISTENING for, to stamp next
+   Nothing is lit before the first tap. -------------------------------- */
+function paint(){
+  $('count').textContent = idx;
+  $('prog').style.width = (idx/flat.length*100)+'%';
+
+  const sel = idx - 1;                 // currently-sung word
+  const up  = idx;                     // word to stamp next
+  const hasUp = up < flat.length;
+  const now = $('now');
+
+  // big word = currently sung (your last tap); '—' before the first tap
+  $('prev').textContent = sel > 0 ? flat[sel-1].w : '';
+  now.textContent = sel >= 0 ? flat[sel].w : '—';
+  now.classList.toggle('waiting', sel < 0);
+
+  // what to listen for next
+  const listen = $('listen');
+  if (hasUp){
+    listen.classList.remove('done');
+    listen.innerHTML = `next&nbsp;&nbsp;▸&nbsp;&nbsp;<b>${flat[up].w}</b>`;
+    $('tapHint').innerHTML = `press <kbd>Space</kbd> the instant “<b>${flat[up].w}</b>” begins`;
+  } else {
+    listen.classList.add('done');
+    listen.textContent = 'Амин — every word is timed.';
+    $('tapHint').textContent = 'all done — hit “Save sync”';
+  }
+
+  // English + Cyrillic context follow the line you're heading into
+  const ctxLi = hasUp ? flat[up].li : flat[sel].li;
+  $('ctxEn').textContent = lines[ctxLi].en;
+  const ln = lines[ctxLi];
+  const upWi = hasUp ? flat[up].wi : ln.cyWords.length;
+  $('ctxLine').innerHTML = ln.cyWords.map((w,wi)=>{
+    if (wi < upWi)  return `<span class="seen">${w}</span>`;
+    if (wi === upWi) return `<span class="hl">${w}</span>`;
+    return w;
+  }).join(' ');
+}
+
+/* ---- actions ---- */
+function stamp(){
+  if (idx >= flat.length) return;
+  flat[idx].t = +audio.currentTime.toFixed(2);
+  idx++;
+  save(); paint();
+}
+function undo(){
+  if (idx === 0) return;
+  idx--; flat[idx].t = null; save(); paint();
+}
+function restart(){
+  if (!confirm('Wipe all timings and start over?')) return;
+  flat.forEach(f=>f.t=null); idx=0; save(); paint();
+}
+
+function buildJSON(){
+  let k=0;
+  const out = { title:'Тиха Молитва', subtitle:'Psalm 135 — the Polyeleos', lines:[] };
+  lines.forEach(ln=>{
+    out.lines.push({ en: ln.en, words: ln.cyWords.map(w=>{
+      const f = flat[k++]; return { cy:w, t: f.t==null?0:f.t };
+    })});
+  });
+  return out;
+}
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+
+async function saveSync(){
+  const data = buildJSON();
+  try {
+    const res = await fetch('/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if (res.ok){ toast('Saved to data/chant.json ✓  — open the experience'); return; }
+    throw new Error(res.status);
+  } catch(e){
+    // fallback: download
+    const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='chant.json'; a.click();
+    toast('Downloaded chant.json — drop it in /data');
+  }
+}
+
+/* ---- audio + controls ---- */
+function togglePlay(){ audio.paused ? audio.play() : audio.pause(); }
+audio.addEventListener('play', ()=>{ document.body.classList.add('playing'); $('playBtn').textContent='⏸'; });
+audio.addEventListener('pause',()=>{ document.body.classList.remove('playing'); $('playBtn').textContent='▶'; });
+
+$('tapBtn').addEventListener('click', stamp);
+$('playBtn').addEventListener('click', togglePlay);
+$('undoBtn').addEventListener('click', undo);
+$('back3').addEventListener('click', ()=> seek(audio.currentTime-3));
+$('restartBtn').addEventListener('click', restart);
+$('saveBtn').addEventListener('click', saveSync);
+
+/* Seek + move the tapping cursor to match. When you rewind, idx drops back
+   to the word that should be sung at that moment, so you can re-tap. */
+function syncCursor(){
+  const t = audio.currentTime;
+  let n = 0;
+  for (let i=0; i<flat.length; i++){
+    if (flat[i].t !== null && flat[i].t <= t + 0.001) n = i+1;
+    else if (flat[i].t === null) break;   // reached the un-stamped frontier
+  }
+  idx = n; paint();
+}
+function seek(t){
+  if (!audio.duration) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, t));
+  syncCursor();
+}
+
+const scrub = $('scrub');
+let dragging = false;
+function scrubTo(clientX){
+  const r = scrub.getBoundingClientRect();
+  const pct = Math.max(0, Math.min(1, (clientX - r.left)/r.width));
+  seek(pct * audio.duration);
+}
+scrub.addEventListener('mousedown',(e)=>{ dragging=true; scrubTo(e.clientX); });
+window.addEventListener('mousemove',(e)=>{ if(dragging) scrubTo(e.clientX); });
+window.addEventListener('mouseup',  ()=>{ dragging=false; });
+scrub.addEventListener('touchstart',(e)=>{ dragging=true; scrubTo(e.touches[0].clientX); e.preventDefault(); },{passive:false});
+scrub.addEventListener('touchmove', (e)=>{ if(dragging){ scrubTo(e.touches[0].clientX); e.preventDefault(); } },{passive:false});
+scrub.addEventListener('touchend',  ()=>{ dragging=false; });
+
+document.addEventListener('keydown',(e)=>{
+  if (e.code==='Space'){ e.preventDefault(); stamp(); }
+  else if (e.key.toLowerCase()==='p'){ e.preventDefault(); togglePlay(); }
+  else if (e.key.toLowerCase()==='z' || e.code==='Backspace'){ e.preventDefault(); undo(); }
+  else if (e.code==='ArrowLeft'){  e.preventDefault(); seek(audio.currentTime-3); }
+  else if (e.code==='ArrowRight'){ e.preventDefault(); seek(audio.currentTime+3); }
+});
+
+setInterval(()=>{
+  const t=audio.currentTime||0, m=Math.floor(t/60), s=Math.floor(t%60);
+  $('clock').textContent = m+':'+String(s).padStart(2,'0');
+  if (audio.duration) $('scrubFill').style.width=(t/audio.duration*100)+'%';
+},120);
+
+paint();
+</script>
+</body>
+</html>

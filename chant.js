@@ -1,0 +1,291 @@
+/* ----------------------------------------------------------------------
+   Тиха Молитва — the listening experience
+   Loads data/chant.json, paints the lines, and lets the audio's own
+   clock decide which word is glowing in this exact moment.
+   ---------------------------------------------------------------------- */
+
+const audio       = document.getElementById('audio');
+const sceneImage  = document.getElementById('sceneImage');
+const veil        = document.getElementById('veil');
+const enterBtn    = document.getElementById('enterBtn');
+const chantEl     = document.getElementById('chant');
+const dock        = document.getElementById('dock');
+const playBtn     = document.getElementById('playBtn');
+const transBtn    = document.getElementById('transBtn');
+const progressTrack = document.getElementById('progressTrack');
+const progressFill  = document.getElementById('progressFill');
+const icoPlay  = document.querySelector('.ico--play');
+const icoPause = document.querySelector('.ico--pause');
+
+let chant = null;          // the loaded data
+let flatWords = [];        // [{ start, lineIndex, el }] sorted by start time
+let currentLine = -1;
+let currentWord = -1;
+const EMERGE_END = 5;      // background fully emerged at second 5
+const BG_MAX = 0.25;       // end state: 75% dimmed (peaks at 25% opacity)
+
+/* ---- load the chant data ---- */
+async function loadChant() {
+  try {
+    const res = await fetch('data/chant.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    chant = await res.json();
+  } catch (e) {
+    chant = SAMPLE; // graceful fallback so the site is never blank
+  }
+  buildLines();
+}
+
+/* ---- render lines + words ---- */
+let lineData = [];   // per line: { enSpans:[...], cyCount } for proportional EN highlight
+
+function buildLines() {
+  chantEl.innerHTML = '';
+  flatWords = [];
+  lineData = [];
+
+  chant.lines.forEach((line, li) => {
+    const lineEl = document.createElement('div');
+    lineEl.className = 'line';
+    lineEl.dataset.line = li;
+
+    const cy = document.createElement('div');
+    cy.className = 'line__cy';
+
+    const cyWords = line.words || [];
+    cyWords.forEach((w, wi) => {
+      const span = document.createElement('span');
+      span.className = 'w';
+      span.textContent = w.cy;
+      cy.appendChild(span);
+      cy.appendChild(document.createTextNode(' '));
+      flatWords.push({ start: w.t, lineIndex: li, wiInLine: wi, el: span });
+    });
+
+    lineEl.appendChild(cy);
+
+    // English, split into words so it can fill in alongside the chant
+    const enSpans = [];
+    if (line.en) {
+      const en = document.createElement('div');
+      en.className = 'line__en';
+      line.en.split(' ').forEach((word) => {
+        const s = document.createElement('span');
+        s.className = 'ew';
+        s.textContent = word;
+        en.appendChild(s);
+        en.appendChild(document.createTextNode(' '));
+        enSpans.push(s);
+      });
+      lineEl.appendChild(en);
+    }
+    // chunk boundaries: which English words belong to each Serbian word
+    const chunks = line.chunks || [];
+    const chunkStart = [];
+    let acc = 0;
+    for (const c of chunks) { chunkStart.push(acc); acc += c; }
+    lineData[li] = { enSpans, cyCount: cyWords.length, chunks, chunkStart };
+    chantEl.appendChild(lineEl);
+  });
+
+  flatWords.sort((a, b) => a.start - b.start);
+  if (document.title === 'document') document.title = chant.title || 'A Serbian Chant';
+}
+
+/* ---- render the text/glow for whatever time the audio is at ----
+   Called both by the playback loop and on every seek, so the text always
+   tracks the audio — scrub, rewind, jump, paused or playing. */
+function renderAt(t) {
+  // find the last word whose start time has passed
+  let idx = -1;
+  for (let i = 0; i < flatWords.length; i++) {
+    if (flatWords[i].start <= t + 0.02) idx = i;
+    else break;
+  }
+
+  if (idx !== currentWord) {
+    flatWords.forEach((w, i) => {
+      w.el.classList.toggle('now', i === idx);
+      w.el.classList.toggle('sung', i < idx);
+    });
+    currentWord = idx;
+
+    const li = idx >= 0 ? flatWords[idx].lineIndex : -1;
+    if (li !== currentLine) {
+      if (currentLine >= 0) highlightEnglish(currentLine, 0);  // reset the line we left
+      setActiveLine(li);
+      currentLine = li;
+    }
+    // fill the English in step with how far the verse has been chanted
+    if (li >= 0) highlightEnglish(li, flatWords[idx].wiInLine + 1);
+  }
+
+  // background very slowly appears, fully emerged (to 25% opacity) by second 5
+  if (sceneImage) {
+    sceneImage.style.opacity = Math.max(0, Math.min(1, t / EMERGE_END)) * BG_MAX;
+  }
+
+  // progress bar (only if the dock is present)
+  if (progressFill && audio.duration) {
+    progressFill.style.width = (t / audio.duration) * 100 + '%';
+  }
+}
+
+/* Light the English by CHUNK: each Serbian word owns a contiguous span of
+   English words (chunks abut, covering the whole line — no gaps). When the
+   Serbian word at position cyPos (1-based; 0 resets) is current, its English
+   chunk glows; everything before it stays lit. */
+function highlightEnglish(li, cyPos) {
+  const data = lineData[li];
+  if (!data || !data.enSpans.length) return;
+  if (cyPos <= 0) {
+    data.enSpans.forEach((s) => s.classList.remove('ew-now', 'ew-sung'));
+    return;
+  }
+  const wi = cyPos - 1;
+  const start = data.chunkStart[wi] ?? data.enSpans.length;
+  const end = start + (data.chunks[wi] || 0);
+  data.enSpans.forEach((s, i) => {
+    s.classList.toggle('ew-sung', i < start);
+    s.classList.toggle('ew-now', i >= start && i < end);
+  });
+}
+
+/* the playback heartbeat */
+function tick() {
+  if (!audio.paused) requestAnimationFrame(tick);
+  renderAt(audio.currentTime);
+}
+
+/* jump the audio to a time and snap the text to it immediately */
+function seek(t) {
+  if (!audio.duration) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, t));
+  renderAt(audio.currentTime);   // snap text now, don't wait for the next frame
+}
+
+function setActiveLine(li) {
+  // before the first word is sung, hold on the opening verse
+  const show = li < 0 ? 0 : li;
+  document.querySelectorAll('.line').forEach((el, i) => {
+    el.classList.toggle('is-active', i === show);
+  });
+  fitLine(show);
+}
+
+// shrink the Cyrillic so the whole verse sits on one unbroken line
+const BASE_CY_PX = 64;            // matches .line__cy base font-size (4rem)
+function fitLine(i) {
+  const line = document.querySelectorAll('.line')[i];
+  if (!line) return;
+  const cy = line.querySelector('.line__cy');
+  if (!cy) return;
+  const avail = window.innerWidth * 0.92;
+  cy.style.fontSize = BASE_CY_PX + 'px';
+  const natural = cy.scrollWidth;
+  if (natural > avail) {
+    cy.style.fontSize = Math.max(20, BASE_CY_PX * (avail / natural)) + 'px';
+  }
+}
+
+// re-fit the active verse if the window resizes
+window.addEventListener('resize', () => {
+  const active = document.querySelector('.line.is-active');
+  if (active) fitLine([...document.querySelectorAll('.line')].indexOf(active));
+});
+
+/* ---- enter the experience ---- */
+let canToggle = false;          // gates click-to-pause until the veil has lifted
+let entered = false;
+
+/* ---- Web Audio: ambient drone + the seal-unlock sound ----
+   Synthesized so no asset files are needed. To use real recordings instead,
+   drop assets/ambient.* / assets/seal.* and swap these for <audio> playback. */
+let actx = null, ambientGain = null;
+function ensureCtx() {
+  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
+  if (actx.state === 'suspended') actx.resume();
+  return actx;
+}
+
+/* (white-noise ambient removed) */
+
+function playUnlock() {
+  // play the seal/book-opening file Tim picked
+  const sfx = document.getElementById('sealSfx');
+  if (!sfx) return;
+  try { sfx.currentTime = 0; sfx.play(); } catch (e) {}
+}
+
+function enter() {
+  if (entered) return;          // ignore the bubbled/extra clicks
+  entered = true;
+
+  enterBtn.classList.add('opening');   // 135 flares + dissolves into the dark
+  playUnlock();                        // the seal sound rides the dissolve
+
+  // wait for the 135 animation to complete, then lift the veil
+  setTimeout(() => {
+    veil.classList.add('is-gone');
+    document.body.classList.add('is-revealed');
+    setActiveLine(0);
+    // a held breath of darkness, then the chant and the image emerge together
+    setTimeout(() => { play(); canToggle = true; }, 1000);
+  }, 1600);
+}
+
+function play() {
+  audio.play().then(() => {
+    document.body.classList.add('is-playing');
+    if (icoPlay)  icoPlay.style.display = 'none';
+    if (icoPause) icoPause.style.display = '';
+    requestAnimationFrame(tick);
+  }).catch(() => {/* user gesture needed; ignore */});
+}
+
+function pause() {
+  audio.pause();
+  document.body.classList.remove('is-playing');
+  if (icoPlay)  icoPlay.style.display = '';
+  if (icoPause) icoPause.style.display = 'none';
+}
+
+function togglePlay() { audio.paused ? play() : pause(); }
+
+/* ---- controls (no on-screen panel) ---- */
+enterBtn.addEventListener('click', enter);
+audio.addEventListener('ended', () => pause());
+audio.addEventListener('play',  () => requestAnimationFrame(tick));
+// whenever the audio's clock moves — including native seeks — re-sync the text
+audio.addEventListener('seeked',     () => renderAt(audio.currentTime));
+audio.addEventListener('timeupdate', () => { if (audio.paused) renderAt(audio.currentTime); });
+
+// once inside, a click/tap anywhere quietly toggles play/pause
+document.addEventListener('click', () => { if (canToggle) togglePlay(); });
+
+// keyboard: space play/pause · ← → seek 10s · T toggles translation
+document.addEventListener('keydown', (e) => {
+  if (veil.classList.contains('is-gone') === false) {
+    if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); enter(); }
+    return;
+  }
+  if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+  else if (e.code === 'ArrowRight') { e.preventDefault(); seek(audio.currentTime + 10); }
+  else if (e.code === 'ArrowLeft')  { e.preventDefault(); seek(audio.currentTime - 10); }
+  else if (e.key.toLowerCase() === 't') { document.body.classList.toggle('hide-translation'); }
+});
+
+/* ---- a tiny sample so the page is alive before real data arrives ---- */
+const SAMPLE = {
+  title: 'Тиха Молитва',
+  lines: [
+    { en: 'Holy God, Holy Mighty, Holy Immortal,',
+      words: [ {cy:'Свети', t:0.0}, {cy:'Боже,', t:1.1}, {cy:'Свети', t:2.4}, {cy:'Крепки,', t:3.5}, {cy:'Свети', t:5.0}, {cy:'Бесмртни,', t:6.1} ] },
+    { en: 'have mercy on us.',
+      words: [ {cy:'помилуј', t:8.0}, {cy:'нас.', t:9.6} ] },
+    { en: 'Glory to the Father, and to the Son, and to the Holy Spirit.',
+      words: [ {cy:'Слава', t:11.5}, {cy:'Оцу', t:12.8}, {cy:'и', t:13.6}, {cy:'Сину', t:14.2}, {cy:'и', t:15.4}, {cy:'Светоме', t:16.0}, {cy:'Духу.', t:17.6} ] },
+  ]
+};
+
+loadChant();

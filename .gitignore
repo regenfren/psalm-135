@@ -1,0 +1,15 @@
+# Python venv (~547M with torch + MMS model — too big for git)
+align/.venv/
+__pycache__/
+*.pyc
+
+# scratch logs
+align/align_err.log
+*.log
+
+# lossy intermediate audio — committed audio is the WAV + the original mp3
+assets/chant.mp3
+
+# OS junk
+.DS_Store
+.AppleDouble
