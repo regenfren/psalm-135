@@ -208,8 +208,11 @@ if (preveil) {
   preveil.addEventListener('click', () => {
     if (bgSfx) bgSfx.play().catch(() => {});  // user gesture — now allowed
     preveil.classList.add('is-gone');
-    // let the pre-veil fade, then bring 135 in
-    setTimeout(() => veil.classList.add('is-shown'), 600);
+    // let the pre-veil fade, then bring 135 in with the rise it had before
+    setTimeout(() => {
+      veil.classList.add('is-shown');
+      enterBtn.classList.add('is-rising');
+    }, 600);
   }, { once: true });
 }
 function fadeOutBg(dur) {
