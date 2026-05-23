@@ -78,18 +78,13 @@ body { position: relative; }
   font-size: clamp(5rem, 22vw, 15rem); line-height: 1;
   letter-spacing: 0.08em;
   color: #000;                              /* black, defined by its glow */
-  text-shadow: 0 0 22px rgba(216,176,105,0.5), 0 0 5px rgba(216,176,105,0.6);
-  animation: rise 2.6s cubic-bezier(.2,.7,.2,1) both, num-breathe 6s ease-in-out 2.6s infinite;
-  transition: text-shadow 0.5s ease, transform 0.5s ease;
+  text-shadow: 0 0 12px rgba(216,176,105,0.32), 0 0 3px rgba(216,176,105,0.42);  /* a slight resting glow */
+  animation: rise 2.6s cubic-bezier(.2,.7,.2,1) both;
+  transition: text-shadow 0.6s ease, transform 0.6s ease;
 }
-.psalm-num:hover {
-  text-shadow: 0 0 34px rgba(244,220,160,0.8), 0 0 8px rgba(244,220,160,0.7);
-  transform: scale(1.03);
-}
-
-@keyframes num-breathe {
-  0%, 100% { text-shadow: 0 0 20px rgba(216,176,105,0.42), 0 0 5px rgba(216,176,105,0.55); }
-  50%      { text-shadow: 0 0 30px rgba(244,220,160,0.6),  0 0 8px rgba(244,220,160,0.65); }
+.psalm-num:hover {                          /* the glow swells under the cursor */
+  text-shadow: 0 0 42px rgba(244,220,160,0.9), 0 0 11px rgba(244,220,160,0.8);
+  transform: scale(1.04);
 }
 
 /* the 135 opens — flares bright at the click, then slowly expands

@@ -198,6 +198,31 @@ window.addEventListener('resize', () => {
 let canToggle = false;          // gates click-to-pause until the veil has lifted
 let entered = false;
 
+/* ---- background ambient on the 135 screen (stops when you click) ---- */
+const bgSfx = document.getElementById('bgSfx');
+if (bgSfx) {
+  bgSfx.volume = 0.6;
+  const tryStart = () => bgSfx.play().catch(() => {});
+  tryStart();                            // hopeful: works on revisits / lenient browsers
+  // any user interaction is allowed to start audio — start it on the first one
+  ['pointerdown', 'pointermove', 'keydown', 'touchstart'].forEach((ev) =>
+    document.addEventListener(ev, tryStart, { passive: true, once: false })
+  );
+}
+function fadeOutBg(dur) {
+  if (!bgSfx) return;
+  const start = bgSfx.volume; const steps = 24;
+  let i = 0;
+  const iv = setInterval(() => {
+    i++;
+    bgSfx.volume = Math.max(0, start * (1 - i / steps));
+    if (i >= steps) {
+      clearInterval(iv);
+      try { bgSfx.pause(); bgSfx.currentTime = 0; } catch (e) {}
+    }
+  }, (dur * 1000) / steps);
+}
+
 /* ---- Web Audio: ambient drone + the seal-unlock sound ----
    Synthesized so no asset files are needed. To use real recordings instead,
    drop assets/ambient.* / assets/seal.* and swap these for <audio> playback. */
@@ -222,6 +247,7 @@ function enter() {
   entered = true;
 
   enterBtn.classList.add('opening');   // 135 flares + dissolves into the dark
+  fadeOutBg(1.2);                       // the ambient hum fades away
   playUnlock();                        // the seal sound rides the dissolve
 
   // wait for the 135 animation to complete, then lift the veil
