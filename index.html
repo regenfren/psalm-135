@@ -18,6 +18,11 @@
     <div class="scene__lightfall"></div>
   </div>
 
+  <!-- Pre-screen: get a user gesture so the ambient hum can begin -->
+  <div class="preveil" id="preveil">
+    <span class="preveil__text">click anywhere to begin</span>
+  </div>
+
   <!-- The opening veil — just the psalm number -->
   <div class="veil" id="veil">
     <button class="psalm-num" id="enterBtn" aria-label="Begin">135</button>
@@ -26,7 +31,7 @@
   <!-- The chant text, synced word by word -->
   <main class="chant" id="chant" aria-live="polite"></main>
 
-  <audio id="audio"   preload="auto" src="assets/chant.wav"></audio>
+  <audio id="audio"   preload="auto" src="assets/chant.wav?v=trim2410"></audio>
   <audio id="sealSfx" preload="auto" src="assets/seal.mp3?v=loud"></audio>
   <audio id="bgSfx"    preload="auto" loop src="assets/background.mp3"></audio>
   <audio id="hoverSfx" preload="auto" loop src="assets/hover.mp3"></audio>

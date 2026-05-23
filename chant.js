@@ -21,7 +21,7 @@ let chant = null;          // the loaded data
 let flatWords = [];        // [{ start, lineIndex, el }] sorted by start time
 let currentLine = -1;
 let currentWord = -1;
-const EMERGE_END = 5;      // background fully emerged at second 5
+const EMERGE_END = 8;      // background fully emerged just as the first word arrives (~7.68s)
 const BG_MAX = 0.25;       // end state: 75% dimmed (peaks at 25% opacity)
 
 /* ---- load the chant data ---- */
@@ -198,16 +198,19 @@ window.addEventListener('resize', () => {
 let canToggle = false;          // gates click-to-pause until the veil has lifted
 let entered = false;
 
-/* ---- background ambient on the 135 screen (stops when you click) ---- */
+/* ---- background ambient (starts on the pre-veil click) ---- */
 const bgSfx = document.getElementById('bgSfx');
-if (bgSfx) {
-  bgSfx.volume = 0.6;
-  const tryStart = () => bgSfx.play().catch(() => {});
-  tryStart();                            // hopeful: works on revisits / lenient browsers
-  // any user interaction is allowed to start audio — start it on the first one
-  ['pointerdown', 'pointermove', 'keydown', 'touchstart'].forEach((ev) =>
-    document.addEventListener(ev, tryStart, { passive: true, once: false })
-  );
+if (bgSfx) bgSfx.volume = 0.6;
+
+/* ---- pre-veil: the click that wakes the audio, then 135 fades in ---- */
+const preveil = document.getElementById('preveil');
+if (preveil) {
+  preveil.addEventListener('click', () => {
+    if (bgSfx) bgSfx.play().catch(() => {});  // user gesture — now allowed
+    preveil.classList.add('is-gone');
+    // let the pre-veil fade, then bring 135 in
+    setTimeout(() => veil.classList.add('is-shown'), 600);
+  }, { once: true });
 }
 function fadeOutBg(dur) {
   if (!bgSfx) return;

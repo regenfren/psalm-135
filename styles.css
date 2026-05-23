@@ -61,15 +61,38 @@ body { position: relative; }
   50%      { opacity: 0.65; }
 }
 
+/* ---------- The pre-screen (gathers the click that wakes the audio) ---------- */
+.preveil {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: #000;
+  cursor: pointer;
+  transition: opacity 1.2s ease, visibility 1.2s;
+}
+.preveil.is-gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.preveil__text {
+  font-family: 'Cinzel', serif; font-weight: 400;
+  font-size: clamp(0.85rem, 1.6vw, 1.05rem);
+  letter-spacing: 0.42em; text-transform: uppercase;
+  color: rgba(216, 176, 105, 0.45);
+  animation: pre-breath 4s ease-in-out infinite;
+}
+@keyframes pre-breath {
+  0%, 100% { opacity: 0.55; text-shadow: 0 0 12px rgba(216,176,105,0.10); }
+  50%      { opacity: 1;    text-shadow: 0 0 22px rgba(244,220,160,0.30); }
+}
+
 /* ---------- The opening veil ---------- */
 .veil {
   position: fixed; inset: 0; z-index: 40;
   display: grid; place-items: center;
   background: radial-gradient(ellipse at center, rgba(10,8,7,0.78), rgba(10,8,7,0.96));
   backdrop-filter: blur(2px);
-  transition: opacity 2.2s ease, visibility 2.2s;
+  opacity: 0;                                /* hidden until the pre-veil click */
+  transition: opacity 1.6s ease, visibility 1.6s;
 }
-.veil.is-gone { opacity: 0; visibility: hidden; pointer-events: none; }
+.veil.is-shown { opacity: 1; }
+.veil.is-gone  { opacity: 0; visibility: hidden; pointer-events: none; }
 
 /* the psalm number — carved-stone Roman lettering, softly breathing gold */
 .psalm-num {
@@ -79,8 +102,10 @@ body { position: relative; }
   letter-spacing: 0.08em;
   color: #000;                              /* black, defined by its glow */
   text-shadow: 0 0 12px rgba(216,176,105,0.32), 0 0 3px rgba(216,176,105,0.42);  /* a slight resting glow */
-  animation: rise 2.6s cubic-bezier(.2,.7,.2,1) both;
   transition: text-shadow 0.6s ease, transform 0.6s ease;
+}
+.veil.is-shown .psalm-num {
+  animation: rise 2.6s cubic-bezier(.2,.7,.2,1) both;
 }
 .psalm-num:hover {                          /* the glow swells under the cursor */
   text-shadow: 0 0 42px rgba(244,220,160,0.9), 0 0 11px rgba(244,220,160,0.8);
