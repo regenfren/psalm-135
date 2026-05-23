@@ -242,26 +242,35 @@ function playUnlock() {
   try { sfx.currentTime = 0; sfx.play(); } catch (e) {}
 }
 
-/* A faint shimmer when the cursor enters 135 — soft sine bell, throttled. */
-let lastShimmer = 0;
-function playHoverShimmer() {
-  const now = performance.now();
-  if (now - lastShimmer < 900) return;     // don't retrigger on jitter
-  lastShimmer = now;
-  try {
-    const ctx = ensureCtx();
-    const t0 = ctx.currentTime;
-    const master = ctx.createGain(); master.gain.value = 0.06; master.connect(ctx.destination);
-    [1046.50, 1567.98].forEach((f, i) => {    // C6 + G6 — a soft bright fifth
-      const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0.0001, t0);
-      g.gain.linearRampToValueAtTime(0.35 / (i + 1), t0 + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + 1.4);
-      o.connect(g); g.connect(master);
-      o.start(t0); o.stop(t0 + 1.5);
-    });
-  } catch (e) {}
+/* Looping hover hum on 135 — fades in while pointing, fades out on leave.
+   The file is already slowed + reverbed, so each loop sustains as bzzzzzhhh. */
+const hoverSfx = document.getElementById('hoverSfx');
+const HOVER_PEAK = 0.5;
+let hoverFade = null;
+function hoverIn() {
+  if (!hoverSfx) return;
+  clearInterval(hoverFade);
+  hoverSfx.volume = Math.min(hoverSfx.volume, HOVER_PEAK);
+  hoverSfx.play().catch(() => {});
+  let v = hoverSfx.volume; const steps = 14;
+  hoverFade = setInterval(() => {
+    v += HOVER_PEAK / steps;
+    if (v >= HOVER_PEAK) { v = HOVER_PEAK; clearInterval(hoverFade); hoverFade = null; }
+    hoverSfx.volume = v;
+  }, 24);
+}
+function hoverOut() {
+  if (!hoverSfx) return;
+  clearInterval(hoverFade);
+  let v = hoverSfx.volume; const steps = 16;
+  hoverFade = setInterval(() => {
+    v -= HOVER_PEAK / steps;
+    if (v <= 0) {
+      v = 0; clearInterval(hoverFade); hoverFade = null;
+      try { hoverSfx.pause(); hoverSfx.currentTime = 0; } catch (e) {}
+    }
+    hoverSfx.volume = Math.max(0, v);
+  }, 32);
 }
 
 function enter() {
@@ -302,7 +311,8 @@ function togglePlay() { audio.paused ? play() : pause(); }
 
 /* ---- controls (no on-screen panel) ---- */
 enterBtn.addEventListener('click', enter);
-enterBtn.addEventListener('mouseenter', playHoverShimmer);
+enterBtn.addEventListener('mouseenter', hoverIn);
+enterBtn.addEventListener('mouseleave', hoverOut);
 audio.addEventListener('ended', () => pause());
 audio.addEventListener('play',  () => requestAnimationFrame(tick));
 // whenever the audio's clock moves — including native seeks — re-sync the text
